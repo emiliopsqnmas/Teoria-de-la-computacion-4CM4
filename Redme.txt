@@ -3,3 +3,7 @@ Carlos Emilio Molina Cordova
 Ingenieria en Sistemas Computacionales 
 Teoria de la Computacion 
 4CM4 
+
+ Indice de Practica #1
+ 1.Practica-1-Parte-A
+ 
