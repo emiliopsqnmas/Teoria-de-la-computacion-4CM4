@@ -5,4 +5,4 @@ Teoria de la Computacion
 4CM4 
 
  Indice de Practica #1
- 1.Parte A
+ 1.Investigación
