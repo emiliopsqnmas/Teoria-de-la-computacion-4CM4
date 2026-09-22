@@ -1,0 +1,50 @@
+# **¿Qué es un sistema de control de versiones y qué problema resuelve en un trabajo en equipo?** 
+
+Es una herramienta que se ocupa en el desarrollo de software para registrar y controlar los cambios realizados en el código principal de un proyecto. Permite ver al equipo todas las versiones anteriores para comparar los cambios realizados por si alguna genero algún bug o también ayuda a ver quien modifico que y cuando lo modifico. 
+
+# **¿Cuál es la diferencia entre Git y GitHub?** 
+
+Tienen diferencias muy significativas Git es un software que descargas y guarda localmente todos cambios de tus códigos en tu computadora este no necesita una conexión a internet, y GitHub es una plataforma WEB mas como una red social, este sirve para compartir los códigos que trabajas en Git este también añade herramientas para trabajar en equipo, este depende totalmente de una conexión a internet. 
+
+**Defina, con sus palabras y con un ejemplo:** 
+
+**Repositorio =>** Es una carpeta o espacio donde podemos guardar nuestro proyecto y guarda toda la información relacionada sobre él, como las versiones, fechas de modificaciones y tamaño. Un ejemplo podría ser que un repositorio es como un cofre de Minecraft, es un baúl donde guardamos nuestros objetos en este caso códigos. 
+
+**Confirmación (commit)=>** Es guardar tu código y enviar una copia. Un ejemplo podría ser guardar partida en un juego, es como asegurar todo tu progreso hasta ese punto. 
+
+**Rama (branch)=>** Es separar tu proyecto en 2 versiones o más, una es la segura y probada y otra es la experimental la que no importa si muere el progreso se queda segura en la principal. Un ejemplo podría ser cuando estas jugando un juego por ejemplo rdr2 y tienes buen honor, pero de repente te entra una loquera y matas a todos y tu honor se muere, pero estabas trabajando en una rama entonces no afectaste a la partida principal solo haces el commit en la rama. 
+
+**fusión(merge)=>** La fusión es juntar el código de tu rama experimental con tu rama principal o cualquiera otra rama. Un ejemplo tomando la analogía anterior podría ser que en vez de haber hecho algo malo conseguiste muchísimo dinero entonces fusionas las partidas. 
+
+**conflicto de fusión** (o merge conflict)=>Es cuando Git tuvo problemas al combinar las 2 ramas porque se modifico exactamente lo mismo o cosas muy parecidas y Git no sabe cual de las 2 escoger. Un ejemplo podría ser que tienes 2 novias y una va a 
+
+cumplir años y vas a tu florería de confianza (Git) y le dices mándale estas flores a mi novia y Git de dice aguántame a cuál de las 2 se la mando. 
+
+**Pull Request=>** Es una solicitud o propuesta para guardar los cambios que hiciste en tu rama en otra, posiblemente la principal. Un ejemplo podría ser tienes un servidor compartido con tus amigos y estuviste haciendo unos cambios desde tu rincón y hablas con ellos y les dices si les gustan (send a pull request) y si todo esta bien pues ya te lo aprueban y lo colocas en el server. 
+
+**Archivo. gitignore=>** Es un archivo de texto con la lista de basura de tu repositorio es todo lo que quieres que Git ignore cuando lo subas. Un ejemplo podría ser que te estas mudando de casa en Minecraft y un amigo te esta ayudando a mudarte y le dices que se lleve todo menos la basura que esta en el cofre de la esquina, la casa seria tu repositorio y tú. gitignore seria ese cofre en la esquina. 
+
+**Archivo README=>** Este archivo contiene todo lo que debes saber del repositorio, como se usa, que hace, advertencias, recomendaciones en general todo lo que el autor quiere que sepas antes de usarlo o revisarlo. Un ejemplo podrían ser la introducción de un juego. 
+
+# **¿Qué es un contenedor y en qué se diferencia de una máquina virtual, en cuanto a arranque, tamaño y aislamiento?** 
+
+Un contenedor es una tecnología de virtualización guarda una aplicación con todo lo necesario para ejecutarse, es solo todo lo esencial para ejecutar el programa. Las principales diferencias con la maquina virtual es que esta misma engloba toda la computadora, tiene todo su propio sistema operativo no solo el programa, En tiempo de arranque es muchísimo más rápido y veloz los contenedores, En tamaño también es mucho mas ligero el contenedor y en cuanto aislamiento es mas seguro las maquinas virtuales porque si se llega a contaminar en la máquina virtual lo máximo que pasa es que se muera tu maquina virtual pero tu maquina principal esta completamente segura y aislada pero el contenedor comparte todo con el sistema operativo entonces si es más peligroso. 
+
+# **Defina:** 
+
+**Imagen=>** Es una plantilla o plano de construcción que contiene todo lo necesario para que una aplicación pueda ejecutarse. 
+
+**Contenedor=>** Es un archivo o unidad que contiene todo lo necesario para correr una aplicación junto con todo lo que necesita para ejecutarse. 
+
+**Volumen=>** Es el medio por el cual se puede guardar los datos generados por el contenedor, No se pierden con él. 
+
+**Puerto publicado=>** Es la comunicación que existe entre el contenedor y tu computadora. 
+
+**¿Qué es un entorno virtual de Python y por qué un entorno virtual no modifica la versión del intérprete?** 
+
+Este es un espacio de trabajo aislado, este te permite instalar librerías y dependencias sin afectar al interprete a otros de tus proyectos. Y no modifica el interprete porque no cambia el interprete instalado lo que hace es crear una copia y trabajar con ella, con eso no necesita estar modificando el intérprete original o vanilla. 
+
+**¿Por qué conviene fijar la versión de la imagen, python:3.12-slim, en lugar de emplear Python: latest?** 
+
+Esto es de lo mas fundamental, porque al fijar una versión especifica de Python lo que haces es que tu sistema tenga resiliencia a través del tiempo, muchas veces de versiones a versiones de Python y esto puede afectar gravemente a tu sistema en vez de estar en una actualización segura y controlada en la que tu sistema corre perfectamente. 
+
