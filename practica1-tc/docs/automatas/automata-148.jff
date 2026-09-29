@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<structure>
+	<type>fa</type>
+	<automaton>
+		<state id="0" name="Inicio">
+			<x>100.0</x>
+			<y>200.0</y>
+			<initial/>
+		</state>
+		<state id="1" name="Conv_1">
+			<x>300.0</x>
+			<y>200.0</y>
+		</state>
+		<state id="2" name="Conv_2">
+			<x>500.0</x>
+			<y>200.0</y>
+		</state>
+		<state id="3" name="Aprobado">
+			<x>300.0</x>
+			<y>350.0</y>
+			<final/>
+		</state>
+		
+		<!-- Transiciones de inicio a la primera convocatoria -->
+		<transition><from>0</from><to>1</to><read>P</read></transition>
+		<transition><from>0</from><to>0</to><read>N</read></transition>
+		
+		<!-- Primera convocatoria -->
+		<transition><from>1</from><to>3</to><read>A</read></transition>
+		<transition><from>1</from><to>2</to><read>S</read></transition>
+		
+		<!-- Segunda convocatoria -->
+		<transition><from>2</from><to>3</to><read>A</read></transition>
+		<!-- Si aplaza en la 2da convocatoria, debe reiniciar ciclo (máximo 2 convocatorias por ciclo) -->
+		<transition><from>2</from><to>0</to><read>S</read></transition>
+	</automaton>
+</structure>

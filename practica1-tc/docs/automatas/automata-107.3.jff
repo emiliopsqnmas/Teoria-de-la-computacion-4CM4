@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<structure>
+	<type>fa</type>
+	<automaton>
+		<state id="0" name="q0_0"><x>100.0</x><y>200.0</y><initial/></state>
+		<state id="1" name="q0101_ok"><x>400.0</x><y>100.0</y></state>
+		<state id="2" name="q021_ok"><x>400.0</x><y>300.0</y></state>
+		<state id="3" name="q_BOTH"><x>700.0</x><y>200.0</y><final/></state>
+		
+		<!-- Transiciones base a estados intermedios de éxito -->
+		<transition><from>0</from><to>0</to><read>1</read></transition>
+		<transition><from>0</from><to>0</to><read>2</read></transition>
+		<transition><from>0</from><to>1</to><read>0</read></transition>
+		
+		<!-- Tras completar 0101 se avanza a q0101_ok -->
+		<transition><from>1</from><to>1</to><read>0</read></transition>
+		<transition><from>1</from><to>1</to><read>1</read></transition>
+		<transition><from>1</from><to>1</to><read>2</read></transition>
+		<transition><from>1</from><to>3</to><read>2</read></transition>
+		
+		<!-- Tras completar 021 se avanza a q021_ok -->
+		<transition><from>0</from><to>2</to><read>2</read></transition>
+		<transition><from>2</from><to>2</to><read>0</read></transition>
+		<transition><from>2</from><to>2</to><read>1</read></transition>
+		<transition><from>2</from><to>2</to><read>2</read></transition>
+		<transition><from>2</from><to>3</to><read>0</read></transition>
+		
+		<!-- Estado de aceptación donde ambas subcadenas fueron encontradas -->
+		<transition><from>3</from><to>3</to><read>0</read></transition>
+		<transition><from>3</from><to>3</to><read>1</read></transition>
+		<transition><from>3</from><to>3</to><read>2</read></transition>
+	</automaton>
+</structure>
