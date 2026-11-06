@@ -1,35 +1,24 @@
 import flet as ft
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 from automata import Automata
 from formatos import cargar_jff, cargar_json, cargar_xml, exportar_jff, exportar_json, exportar_xml
 from lenguajes import prefijos, sufijos
+from practica3_utils import validar_lote_cadenas
 
 def main(page: ft.Page):
-    page.title = "Simulador de Autómatas Finitos - Práctica 2"
+    page.title = "Simulador de Autómatas Finitos - Prácticas 2 y 3"
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.scroll = "adaptive"
     page.padding = 20
 
     estado_app = {
-        "automata": Automata(
-            tipo='AFD',
-            alfabeto={'a', 'b'},
-            estados={'q0', 'q1'},
-            inicial='q0',
-            aceptacion={'q1'},
-            transiciones={
-                ('q0', 'a'): 'q1',
-                ('q0', 'b'): 'q0',
-                ('q1', 'a'): 'q1',
-                ('q1', 'b'): 'q0'
-            }
-        ),
-        "nombre_archivo": "Autómata por defecto (AFD)"
+        "automata": None,
+        "nombre_archivo": "Ningún autómata cargado"
     }
 
     lbl_info = ft.Text(
-        f"Archivo: {estado_app['nombre_archivo']} | Tipo: {estado_app['automata'].tipo} | Inicial: {estado_app['automata'].inicial} | Aceptación: {list(estado_app['automata'].aceptacion)}", 
+        "Estado: Esperando archivo o creación manual de autómata", 
         weight=ft.FontWeight.BOLD
     )
     
@@ -83,7 +72,7 @@ def main(page: ft.Page):
     txt_alfabeto = ft.TextField(label="Alfabeto (ej. a,b)", width=150)
     txt_inicial = ft.TextField(label="Inicial (ej. q0)", width=120)
     txt_aceptacion = ft.TextField(label="Aceptación (ej. q2)", width=150)
-    txt_transiciones = ft.TextField(label="Transiciones [desde,símbolo,hacia] (ej. q0,a,q1;q1,b,q2)", width=400, multiline=True, height=60)
+    txt_transiciones = ft.TextField(label="Transiciones [desde,símbolo,hacia] (ej. q0,lambda,q1; q1,a,q2)", width=400, multiline=True, height=60)
     dd_tipo = ft.Dropdown(
         label="Tipo",
         options=[
@@ -110,7 +99,6 @@ def main(page: ft.Page):
                 sub = p.split(",")
                 if len(sub) == 3:
                     desde, simbolo, hacia = sub[0].strip(), sub[1].strip(), sub[2].strip()
-                    # Permitir transición lambda vacía representada como ''
                     if simbolo == 'lambda' or simbolo == 'ε':
                         simbolo = ''
                     key = (desde, simbolo)
@@ -141,8 +129,13 @@ def main(page: ft.Page):
 
     btn_crear = ft.ElevatedButton("⚙️ Crear Autómata Manual", on_click=crear_automata_manual)
 
-    # Funciones de Exportación
     def exportar_archivo(e):
+        if not estado_app["automata"]:
+            lbl_resultado.value = "✘ Primero debes cargar o crear un autómata"
+            lbl_resultado.color = "red"
+            page.update()
+            return
+
         root = tk.Tk()
         root.withdraw()
         root.attributes('-topmost', True)
@@ -180,11 +173,98 @@ def main(page: ft.Page):
 
     btn_exportar = ft.ElevatedButton("💾 Exportar Autómata Actual", on_click=exportar_archivo)
 
+    # --- ACCIONES DE LA PRÁCTICA 3 ---
+    def ejecutar_eliminar_lambda(e):
+        auto = estado_app["automata"]
+        if not auto:
+            lbl_resultado.value = "✘ No hay autómata cargado"
+            page.update()
+            return
+        nuevo = auto.eliminar_transiciones_lambda()
+        estado_app["automata"] = nuevo
+        lbl_info.value = f"Transiciones λ eliminadas | Tipo: {nuevo.tipo} | Estados: {list(nuevo.estados)} | Aceptación: {list(nuevo.aceptacion)}"
+        lbl_resultado.value = "✔ Transiciones λ eliminadas exitosamente."
+        lbl_resultado.color = "green"
+        page.update()
+
+    def ejecutar_subconjuntos(e):
+        auto = estado_app["automata"]
+        if not auto:
+            lbl_resultado.value = "✘ No hay autómata cargado"
+            page.update()
+            return
+        afd, tabla = auto.construir_afd_subconjuntos()
+        estado_app["automata"] = afd
+        lbl_info.value = f"Convertido a AFD (Subconjuntos) | Inicial: {afd.inicial} | Estados: {list(afd.estados)}"
+        lbl_resultado.value = "✔ Construcción de subconjuntos aplicada con éxito."
+        lbl_resultado.color = "green"
+        
+        col_traza.controls.clear()
+        col_traza.controls.append(ft.Text("Tabla de Subconjuntos Generada:", weight=ft.FontWeight.BOLD))
+        for fila in tabla:
+            col_traza.controls.append(ft.Text(f"Estado {fila['estado']} {fila['subconjunto']} -> Transiciones: {fila['transiciones']}"))
+        page.update()
+
+    def ejecutar_minimizar(e):
+        auto = estado_app["automata"]
+        if not auto:
+            lbl_resultado.value = "✘ No hay autómata cargado"
+            page.update()
+            return
+        afd_min, particiones = auto.minimizar_afd()
+        estado_app["automata"] = afd_min
+        lbl_info.value = f"AFD Minimizado | Estados: {list(afd_min.estados)} | Inicial: {afd_min.inicial}"
+        lbl_resultado.value = "✔ Minimización de AFD completada."
+        lbl_resultado.color = "green"
+
+        col_traza.controls.clear()
+        col_traza.controls.append(ft.Text("Particiones en el proceso de minimización:", weight=ft.FontWeight.BOLD))
+        for idx, part in enumerate(particiones):
+            col_traza.controls.append(ft.Text(f"Ronda {idx}: {[set(g) for g in part]}"))
+        page.update()
+
+    def ejecutar_lote(e):
+        auto = estado_app["automata"]
+        if not auto:
+            lbl_resultado.value = "✘ No hay autómata cargado"
+            page.update()
+            return
+        
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        archivo_in = filedialog.askopenfilename(title="Seleccionar archivo de cadenas (txt)")
+        root.destroy()
+        
+        if not archivo_in:
+            return
+
+        try:
+            archivo_out = archivo_in.replace(".txt", "_informe.txt")
+            total = validar_lote_cadenas(auto, archivo_in, archivo_out)
+            lbl_resultado.value = f"✔ Lote procesado: {total} cadenas evaluadas. Informe guardado en {archivo_out}"
+            lbl_resultado.color = "green"
+        except Exception as ex:
+            lbl_resultado.value = f"✘ Error en lote: {ex}"
+            lbl_resultado.color = "red"
+        page.update()
+
+    btn_elim_lambda = ft.ElevatedButton("⚡ Eliminar Transiciones λ", on_click=ejecutar_eliminar_lambda)
+    btn_subconjuntos = ft.ElevatedButton("🔄 Construir AFD (Subconjuntos)", on_click=ejecutar_subconjuntos)
+    btn_minimizar = ft.ElevatedButton("📉 Minimizar AFD", on_click=ejecutar_minimizar)
+    btn_lote = ft.ElevatedButton("📁 Validar Lote de Cadenas", on_click=ejecutar_lote)
+
     # Simulación de cadenas
     txt_cadena = ft.TextField(label="Cadena a validar", width=300)
 
     def validar(e):
         automata_actual = estado_app["automata"]
+        if not automata_actual:
+            lbl_resultado.value = "✘ Primero debes cargar o crear un autómata"
+            lbl_resultado.color = "red"
+            page.update()
+            return
+
         cadena = txt_cadena.value or ""
         aceptada, traza = automata_actual.simular_cadena(cadena)
         
@@ -222,7 +302,7 @@ def main(page: ft.Page):
     btn_suf = ft.ElevatedButton("Calcular Sufijos", on_click=op_sufijos)
 
     page.add(
-        ft.Text("Simulador de Autómatas Finitos - Práctica 2", size=22, weight=ft.FontWeight.BOLD),
+        ft.Text("Simulador de Autómatas Finitos - Prácticas 2 y 3", size=22, weight=ft.FontWeight.BOLD),
         ft.Divider(),
         ft.Text("1. Gestión de Archivos y Exportación", size=16, weight=ft.FontWeight.BOLD),
         ft.Row([btn_explorador, txt_ruta, btn_exportar], alignment=ft.MainAxisAlignment.START),
@@ -232,14 +312,18 @@ def main(page: ft.Page):
         ft.Row([txt_inicial, txt_aceptacion, btn_crear], alignment=ft.MainAxisAlignment.START),
         txt_transiciones,
         ft.Divider(),
+        ft.Text("3. Algoritmos de Conversión y Minimización (Práctica 3)", size=16, weight=ft.FontWeight.BOLD),
+        ft.Row([btn_elim_lambda, btn_subconjuntos, btn_minimizar], alignment=ft.MainAxisAlignment.START),
+        ft.Row([btn_lote], alignment=ft.MainAxisAlignment.START),
+        ft.Divider(),
         lbl_info,
         ft.Container(height=5),
-        ft.Text("3. Validación de Cadenas", size=16, weight=ft.FontWeight.BOLD),
+        ft.Text("4. Validación de Cadenas", size=16, weight=ft.FontWeight.BOLD),
         ft.Row([txt_cadena, btn_validar], alignment=ft.MainAxisAlignment.START),
         lbl_resultado,
         col_traza,
         ft.Divider(),
-        ft.Text("4. Operaciones sobre Cadenas (Práctica 1)", size=16, weight=ft.FontWeight.BOLD),
+        ft.Text("5. Operaciones sobre Cadenas (Práctica 1)", size=16, weight=ft.FontWeight.BOLD),
         txt_cadena_l1,
         ft.Row([btn_pref, btn_suf], alignment=ft.MainAxisAlignment.START),
         lbl_res_l1
