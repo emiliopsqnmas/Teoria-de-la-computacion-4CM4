@@ -1,3 +1,4 @@
+#MOLINA CORDOVA CARLOS EMILIO-2025630042-4CV4
 # Simulador de Autómatas Finitos — Teoría de la Computación
 
 Aplicación de escritorio/web con Flet para trabajar con autómatas finitos,
