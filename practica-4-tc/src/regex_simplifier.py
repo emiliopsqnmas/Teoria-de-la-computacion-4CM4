@@ -12,6 +12,7 @@ def literal(value):
     return ("lit", str(value))
 
 def union(*items):
+    """Unión con identidad ∅, idempotencia y absorción por cerradura."""
     flat = []
     for item in items:
         if item == EMPTY:
@@ -25,7 +26,8 @@ def union(*items):
         return EMPTY
     if len(unique) == 1:
         return unique[0]
-    # Absorción: R + RR* = R* y R + R*R = R*.
+
+    # R + RR* = R* y R + R*R = R*.
     for candidate in unique:
         if candidate[0] != "concat" or len(candidate[1]) != 2:
             continue
@@ -34,9 +36,22 @@ def union(*items):
             return star(left)
         if left[0] == "star" and left[1] == right and right in unique:
             return star(right)
+
+    # ε + RR* = R* y ε + R*R = R*.
+    if EPSILON in unique:
+        for candidate in unique:
+            if candidate[0] != "concat" or len(candidate[1]) != 2:
+                continue
+            left, right = candidate[1]
+            if right[0] == "star" and right[1] == left:
+                return star(left)
+            if left[0] == "star" and left[1] == right:
+                return star(right)
+
     return ("union", tuple(sorted(unique, key=render)))
 
 def concat(*items):
+    """Construye concatenación aplicando identidad, anulación y asociatividad."""
     flat = []
     for item in items:
         if item == EMPTY:
@@ -45,9 +60,15 @@ def concat(*items):
     flat = [x for x in flat if x != EPSILON]
     if not flat:
         return EPSILON
-    if len(flat) == 1:
-        return flat[0]
-    return ("concat", tuple(flat))
+    reducidos = []
+    for item in flat:
+        if (reducidos and reducidos[-1][0] == "star" and item[0] == "star"
+                and reducidos[-1][1] == item[1]):
+            continue
+        reducidos.append(item)
+    if len(reducidos) == 1:
+        return reducidos[0]
+    return ("concat", tuple(reducidos))
 
 def star(item):
     if item in (EMPTY, EPSILON):

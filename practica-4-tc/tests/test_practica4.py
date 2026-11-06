@@ -268,3 +268,28 @@ def test_equivalencia_rechaza_automata_no_determinista():
     afd = Automata("AFD", {"a"}, {"s"}, "s", set(), {})
     with pytest.raises(ValueError, match="No se pueden comparar"):
         comparar_afd(afnd, afd)
+
+
+
+def test_leyes_algebraicas_adicionales_de_expresiones_regulares():
+    from regex_simplifier import (
+        EMPTY, EPSILON, literal, union, concat, star, render, simplify
+    )
+    a = literal("a")
+    b = literal("b")
+
+    # Identidades y elementos absorbentes.
+    assert render(union(a, EMPTY)) == "a"
+    assert render(concat(a, EPSILON)) == "a"
+    assert render(concat(a, EMPTY)) == "∅"
+    assert render(star(EMPTY)) == "ε"
+    assert render(star(EPSILON)) == "ε"
+
+    # Idempotencia y cerradura.
+    assert render(union(a, a)) == "a"
+    assert render(star(star(a))) == "a*"
+    assert render(concat(star(a), star(a))) == "a*"
+
+    # Absorción por cerradura.
+    assert render(union(EPSILON, concat(a, star(a)))) == "a*"
+    assert render(union(EPSILON, concat(star(a), a))) == "a*"

@@ -1,3 +1,7 @@
+# Simulador de Autómatas Finitos — Teoría de la Computación
+
+Aplicación de escritorio/web con Flet para trabajar con autómatas finitos,
+expresiones regulares y validadores prácticos.
 
 ## Requisitos
 - Python 3.11, 3.12 o 3.13
@@ -27,3 +31,28 @@ PYTHONPATH=src python -m pytest -q
 - `src/formatos.py`: importación y exportación JFLAP, JSON y XML.
 
 
+Para ejecutar las pruebas desde la carpeta del proyecto:
+
+```bash
+PYTHONPATH=src pytest -q
+```
+
+La prueba automatizada de esta versión se ejecutó en Python 3.13: **14 pruebas aprobadas**.
+Todavía debe verificarse la misma suite en Python 3.11 y 3.12 mediante los contenedores
+configurados en `entorno/compose.yml`.
+
+
+
+Reglas implementadas y cubiertas:
+- Unión: `R + ∅ = R` y `R + R = R`.
+- Concatenación: `Rε = εR = R`, `R∅ = ∅R = ∅`.
+- Cerradura: `∅* = ε`, `ε* = ε` y `(R*)* = R*`.
+- Cerraduras consecutivas: `R*R* = R*`.
+- Absorción: `R + RR* = R*`, `R + R*R = R*`, `ε + RR* = R*` y `ε + R*R = R*`.
+
+La simplificación se aplica al construir las operaciones y en cada actualización de
+la matriz del método Rij. No se afirma que el módulo obtenga una forma algebraica
+canónica para toda expresión: por ejemplo, la distributividad no se aplica como
+reescritura general.
+
+Pruebas de esta etapa: `PYTHONPATH=src pytest -q` — **18 pruebas aprobadas en Python 3.13**.
