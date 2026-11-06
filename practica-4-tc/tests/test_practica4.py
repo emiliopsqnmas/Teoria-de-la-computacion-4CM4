@@ -152,3 +152,119 @@ def test_thompson_muestra_pasos_y_no_colisiona_estados():
     assert afd.simular_cadena("01")[0]
     assert afd.simular_cadena("12")[0]
     assert not afd.simular_cadena("1")[0]
+
+
+
+def test_exportacion_jflap_de_todas_las_etapas_regex(tmp_path):
+    from kleene_parser import regex_a_automata_detallado
+    from formatos import exportar_jff, cargar_jff
+
+    resultado = regex_a_automata_detallado("(a+b)*ab")
+    etapas = ["afn_lambda", "afn", "afd", "afd_minimo"]
+    cadenas = ["", "a", "b", "ab", "aab", "babab", "abb", "ba"]
+
+    for etapa in etapas:
+        ruta = tmp_path / f"{etapa}.jff"
+        original = resultado[etapa]
+        exportar_jff(original, str(ruta))
+        recuperado = cargar_jff(str(ruta))
+        assert recuperado.estados == original.estados
+        assert recuperado.inicial == original.inicial
+        assert recuperado.aceptacion == original.aceptacion
+        for cadena in cadenas:
+            assert recuperado.simular_cadena(cadena)[0] == original.simular_cadena(cadena)[0]
+
+
+def test_conversion_regex_entrega_cuatro_etapas_y_mantiene_lenguaje():
+    from kleene_parser import regex_a_automata_detallado
+
+    resultado = regex_a_automata_detallado("(a+b)*ab")
+    assert set(("afn_lambda", "afn", "afd", "afd_minimo")).issubset(resultado)
+    cadenas = ["", "a", "b", "ab", "aab", "babab", "abb", "ba"]
+    referencia = resultado["afn_lambda"]
+    for etapa in ("afn", "afd", "afd_minimo"):
+        for cadena in cadenas:
+            assert resultado[etapa].simular_cadena(cadena)[0] == referencia.simular_cadena(cadena)[0]
+
+
+def test_diagnostico_afd_detecta_transicion_lambda_y_no_determinismo():
+    from automata import Automata
+    from validacion_afd import diagnosticar_afd, es_afd
+
+    no_determinista = Automata(
+        tipo="AFND-lambda", alfabeto={"a"}, estados={"q0", "q1", "q2"},
+        inicial="q0", aceptacion={"q2"},
+        transiciones={("q0", "a"): {"q1", "q2"}, ("q1", ""): {"q2"}},
+    )
+    problemas = diagnosticar_afd(no_determinista)
+    assert not es_afd(no_determinista)
+    assert any("estado 'q0'" in p and "símbolo 'a'" in p for p in problemas)
+    assert any("transición λ" in p for p in problemas)
+
+
+def test_diagnostico_afd_acepta_afd_con_transiciones_parciales():
+    from automata import Automata
+    from validacion_afd import diagnosticar_afd, es_afd
+
+    afd = Automata(
+        tipo="AFD", alfabeto={"a", "b"}, estados={"q0", "q1"},
+        inicial="q0", aceptacion={"q1"}, transiciones={("q0", "a"): {"q1"}},
+    )
+    assert diagnosticar_afd(afd) == []
+    assert es_afd(afd)
+
+
+def test_rij_guarda_matriz_reducida_en_cada_eliminacion():
+    from automata import Automata
+    afd = Automata(
+        tipo="AFD", alfabeto={"a", "b"}, estados={"q0", "q1", "q2"},
+        inicial="q0", aceptacion={"q2"},
+        transiciones={("q0", "a"): {"q1"}, ("q1", "b"): {"q2"}},
+    )
+    expresion, pasos = afd.automata_a_regex_rij()
+    assert len(pasos) == 3
+    for estado_eliminado, matriz in pasos:
+        assert estado_eliminado not in matriz
+        assert all(estado_eliminado not in destinos for destinos in matriz.values())
+    assert expresion not in ("", "∅")
+
+
+
+def test_equivalencia_afd_minimizados_acepta_lenguajes_iguales():
+    from automata import Automata
+    from equivalencia import comparar_minimizados
+
+    a = Automata("AFD", {"a", "b"}, {"q0", "q1"}, "q0", {"q1"},
+                 {("q0", "a"): {"q1"}, ("q1", "a"): {"q1"}})
+    b = Automata("AFD", {"a", "b"}, {"s", "f", "muerto"}, "s", {"f"},
+                 {("s", "a"): {"f"}, ("s", "b"): {"muerto"},
+                  ("f", "a"): {"f"}, ("f", "b"): {"muerto"},
+                  ("muerto", "a"): {"muerto"}, ("muerto", "b"): {"muerto"}})
+    resultado = comparar_minimizados(a, b)
+    assert resultado["equivalentes"] is True
+    assert resultado["testigo"] is None
+
+
+def test_equivalencia_devuelve_testigo_mas_corto():
+    from automata import Automata
+    from equivalencia import comparar_afd
+
+    acepta_a = Automata("AFD", {"a"}, {"q0", "q1"}, "q0", {"q1"},
+                        {("q0", "a"): {"q1"}})
+    rechaza_todo = Automata("AFD", {"a"}, {"s"}, "s", set(), {})
+    equivalente, testigo, detalle = comparar_afd(acepta_a, rechaza_todo)
+    assert equivalente is False
+    assert testigo == "a"
+    assert "acepta" in detalle
+
+
+def test_equivalencia_rechaza_automata_no_determinista():
+    import pytest
+    from automata import Automata
+    from equivalencia import comparar_afd
+
+    afnd = Automata("AFND", {"a"}, {"q0", "q1", "q2"}, "q0", {"q2"},
+                    {("q0", "a"): {"q1", "q2"}})
+    afd = Automata("AFD", {"a"}, {"s"}, "s", set(), {})
+    with pytest.raises(ValueError, match="No se pueden comparar"):
+        comparar_afd(afnd, afd)

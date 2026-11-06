@@ -1,5 +1,6 @@
 import flet as ft
 import tkinter as tk
+import os
 from tkinter import filedialog
 from automata import Automata
 from formatos import cargar_jff, cargar_json, cargar_xml, exportar_jff, exportar_json, exportar_xml
@@ -7,6 +8,8 @@ from lenguajes import prefijos, sufijos
 from practica3_utils import validar_lote_cadenas
 from kleene_parser import regex_a_automata, regex_a_automata_detallado
 from validadores import VALIDADORES_CONFIG, validar_con_validador, construir_afd_validador
+from validacion_afd import diagnosticar_afd
+from equivalencia import comparar_minimizados
 
 def main(page: ft.Page):
     page.title = "Simulador de Autómatas Finitos - Prácticas 2, 3 y 4"
@@ -16,7 +19,11 @@ def main(page: ft.Page):
 
     estado_app = {
         "automata": None,
-        "nombre_archivo": "Ningún autómata cargado"
+        "nombre_archivo": "Ningún autómata cargado",
+        "conversion_regex": None,
+        "rij_pasos": [],
+        "rij_indice": 0,
+        "rij_expresion": None
     }
 
     lbl_info = ft.Text(
@@ -27,6 +34,8 @@ def main(page: ft.Page):
     txt_ruta = ft.TextField(label="Ruta del archivo seleccionado", width=350, read_only=True)
     lbl_resultado = ft.Text(size=16, weight=ft.FontWeight.BOLD)
     col_traza = ft.Column()
+    lbl_rij_paso = ft.Text(size=14, weight=ft.FontWeight.BOLD)
+    col_rij = ft.Column(scroll="auto", height=260)
 
     def abrir_explorador(e):
         root = tk.Tk()
@@ -59,8 +68,13 @@ def main(page: ft.Page):
             auto = estado_app["automata"]
             
             lbl_info.value = f"Archivo: {estado_app['nombre_archivo']} | Tipo: {auto.tipo} | Inicial: {auto.inicial} | Aceptación: {list(auto.aceptacion)}"
-            lbl_resultado.value = "✔ Autómata cargado con éxito."
-            lbl_resultado.color = "green"
+            problemas_afd = diagnosticar_afd(auto)
+            if problemas_afd:
+                lbl_resultado.value = "⚠ Archivo cargado, pero no es un AFD: " + " ".join(problemas_afd)
+                lbl_resultado.color = "orange"
+            else:
+                lbl_resultado.value = "✔ Autómata cargado y verificado: es determinista (AFD)."
+                lbl_resultado.color = "green"
             col_traza.controls.clear()
         except Exception as ex:
             lbl_resultado.value = f"✘ Error al cargar: {ex}"
@@ -225,6 +239,50 @@ def main(page: ft.Page):
             col_traza.controls.append(ft.Text(f"Ronda {idx}: {[set(g) for g in part]}"))
         page.update()
 
+    def mostrar_paso_rij():
+        pasos = estado_app["rij_pasos"]
+        indice = estado_app["rij_indice"]
+        col_rij.controls.clear()
+        if not pasos:
+            lbl_rij_paso.value = "Ejecuta el método Rij para consultar los pasos."
+            btn_rij_anterior.disabled = True
+            btn_rij_siguiente.disabled = True
+            page.update()
+            return
+        eliminado, matriz = pasos[indice]
+        lbl_rij_paso.value = (
+            f"Paso {indice + 1} de {len(pasos)} | Estado eliminado: {eliminado} | "
+            f"Expresión final: {estado_app['rij_expresion']}"
+        )
+        col_rij.controls.append(ft.Text(
+            "Autómata generalizado representado como matriz de expresiones:",
+            weight=ft.FontWeight.BOLD
+        ))
+        for origen in matriz:
+            for destino, expresion in matriz[origen].items():
+                if expresion != "∅":
+                    col_rij.controls.append(ft.Text(
+                        f"{origen}  ──[{expresion}]──>  {destino}", size=13
+                    ))
+        if not any(exp != "∅" for fila in matriz.values() for exp in fila.values()):
+            col_rij.controls.append(ft.Text("No quedan transiciones entre los estados activos."))
+        btn_rij_anterior.disabled = indice == 0
+        btn_rij_siguiente.disabled = indice >= len(pasos) - 1
+        page.update()
+
+    def paso_rij_anterior(e):
+        if estado_app["rij_indice"] > 0:
+            estado_app["rij_indice"] -= 1
+            mostrar_paso_rij()
+
+    def paso_rij_siguiente(e):
+        if estado_app["rij_indice"] < len(estado_app["rij_pasos"]) - 1:
+            estado_app["rij_indice"] += 1
+            mostrar_paso_rij()
+
+    btn_rij_anterior = ft.ElevatedButton("← Paso anterior", on_click=paso_rij_anterior, disabled=True)
+    btn_rij_siguiente = ft.ElevatedButton("Siguiente paso →", on_click=paso_rij_siguiente, disabled=True)
+
     def ejecutar_automata_a_regex(e):
         auto = estado_app["automata"]
         if not auto:
@@ -232,29 +290,23 @@ def main(page: ft.Page):
             page.update()
             return
         try:
+            problemas = diagnosticar_afd(auto)
+            if problemas:
+                lbl_resultado.value = "✘ No se puede ejecutar Rij: el archivo no es un AFD. " + " ".join(problemas)
+                lbl_resultado.color = "red"
+                estado_app["rij_pasos"] = []
+                mostrar_paso_rij()
+                return
             expr, pasos = auto.automata_a_regex_rij()
-            lbl_resultado.value = f"✔ Expresión Regular obtenida: {expr}"
+            estado_app["rij_pasos"] = pasos
+            estado_app["rij_indice"] = 0
+            estado_app["rij_expresion"] = expr
+            lbl_resultado.value = f"✔ Expresión Regular obtenida por Rij: {expr}"
             lbl_resultado.color = "green"
             col_traza.controls.clear()
-            col_traza.controls.append(ft.Text(f"Resultado Final ER: {expr}", weight=ft.FontWeight.BOLD))
-            col_traza.controls.append(ft.Text("Pasos de eliminación (Método Rij):"))
-            for numero, (elim, matriz) in enumerate(pasos, start=1):
-                col_traza.controls.append(
-                    ft.Text(f"Paso {numero}: se elimina el estado {elim}", weight=ft.FontWeight.BOLD)
-                )
-                for origen, destinos in matriz.items():
-                    conexiones = [
-                        f"{destino}: {expresion}"
-                        for destino, expresion in destinos.items()
-                        if expresion != "∅"
-                    ]
-                    if conexiones:
-                        col_traza.controls.append(
-                            ft.Text(f"  Desde {origen} -> " + " | ".join(conexiones), size=12)
-                        )
-            page.update()
+            mostrar_paso_rij()
         except Exception as ex:
-            lbl_resultado.value = f"✘ Error: {ex}"
+            lbl_resultado.value = f"✘ Error en Rij: {ex}"
             lbl_resultado.color = "red"
             page.update()
 
@@ -289,6 +341,77 @@ def main(page: ft.Page):
     btn_minimizar = ft.ElevatedButton("📉 Minimizar AFD", on_click=ejecutar_minimizar)
     btn_auto_regex = ft.ElevatedButton("📈 Autómata a ER (Rij)", on_click=ejecutar_automata_a_regex)
     btn_lote = ft.ElevatedButton("📁 Validar Lote de Cadenas", on_click=ejecutar_lote)
+
+    # --- COMPARACIÓN FORMAL DE EQUIVALENCIA (JFLAP / RIJ) ---
+    estado_comparacion = {"a": None, "b": None, "ruta_a": "", "ruta_b": ""}
+    lbl_archivos_equiv = ft.Text("Selecciona dos archivos JFLAP (.jff).")
+    lbl_resultado_equiv = ft.Text(size=14, weight=ft.FontWeight.BOLD)
+
+    def cargar_archivo_equiv(clave):
+        root_dialog = tk.Tk()
+        root_dialog.withdraw()
+        root_dialog.attributes("-topmost", True)
+        ruta = filedialog.askopenfilename(
+            title="Seleccionar primer AFD" if clave == "a" else "Seleccionar segundo AFD",
+            filetypes=[("Autómatas JFLAP", "*.jff")]
+        )
+        root_dialog.destroy()
+        if not ruta:
+            return
+        try:
+            auto = cargar_jff(ruta)
+            problemas = diagnosticar_afd(auto)
+            if problemas:
+                raise ValueError("El archivo no es un AFD: " + " ".join(problemas))
+            estado_comparacion[clave] = auto
+            estado_comparacion["ruta_" + clave] = os.path.basename(ruta)
+            lbl_archivos_equiv.value = (
+                f"Primer AFD: {estado_comparacion['ruta_a'] or 'sin seleccionar'} | "
+                f"Segundo AFD: {estado_comparacion['ruta_b'] or 'sin seleccionar'}"
+            )
+            lbl_resultado_equiv.value = f"✔ {os.path.basename(ruta)} cargado y verificado como AFD."
+            lbl_resultado_equiv.color = "green"
+        except Exception as ex:
+            lbl_resultado_equiv.value = f"✘ No se pudo cargar: {ex}"
+            lbl_resultado_equiv.color = "red"
+        page.update()
+
+    def cargar_equiv_a(e):
+        cargar_archivo_equiv("a")
+
+    def cargar_equiv_b(e):
+        cargar_archivo_equiv("b")
+
+    def ejecutar_comparacion_equiv(e):
+        afd_a, afd_b = estado_comparacion["a"], estado_comparacion["b"]
+        if afd_a is None or afd_b is None:
+            lbl_resultado_equiv.value = "✘ Primero carga los dos archivos JFLAP."
+            lbl_resultado_equiv.color = "red"
+            page.update()
+            return
+        try:
+            resultado = comparar_minimizados(afd_a, afd_b)
+            if resultado["equivalentes"]:
+                lbl_resultado_equiv.value = (
+                    "✔ EQUIVALENTES. Los AFD mínimos reconocen el mismo lenguaje. "
+                    f"Estados mínimos: {len(resultado['afd_a_minimo'].estados)} y "
+                    f"{len(resultado['afd_b_minimo'].estados)}."
+                )
+                lbl_resultado_equiv.color = "green"
+            else:
+                lbl_resultado_equiv.value = (
+                    f"✘ NO SON EQUIVALENTES. Cadena testigo más corta: "
+                    f"{resultado['testigo']!r}. {resultado['detalle']}"
+                )
+                lbl_resultado_equiv.color = "red"
+        except Exception as ex:
+            lbl_resultado_equiv.value = f"✘ Error al comparar: {ex}"
+            lbl_resultado_equiv.color = "red"
+        page.update()
+
+    btn_cargar_equiv_a = ft.ElevatedButton("Cargar AFD de Rij (.jff)", on_click=cargar_equiv_a)
+    btn_cargar_equiv_b = ft.ElevatedButton("Cargar AFD de JFLAP (.jff)", on_click=cargar_equiv_b)
+    btn_comparar_equiv = ft.ElevatedButton("Comparar equivalencia", on_click=ejecutar_comparacion_equiv)
 
     # --- ACCIONES DE LA PRÁCTICA 4 (EXPRESIÓN REGULAR Y VALIDADORES) ---
     txt_regex = ft.TextField(label="Expresión Regular (ej. (a+b)*abb)", width=360)
@@ -343,6 +466,7 @@ def main(page: ft.Page):
         try:
             expr = txt_regex.value or ""
             resultado = regex_a_automata_detallado(expr)
+            estado_app["conversion_regex"] = resultado
             afn_lambda = resultado["afn_lambda"]
             afd = resultado["afd"]
             afd_min = resultado["afd_minimo"]
@@ -365,6 +489,51 @@ def main(page: ft.Page):
             page.update()
 
     btn_regex_afd = ft.ElevatedButton("🔤 ER a AFD (Kleene)", on_click=ejecutar_regex_a_afd)
+
+    def exportar_etapa_regex(clave, nombre):
+        resultado = estado_app.get("conversion_regex")
+        if not resultado:
+            lbl_resultado.value = "✘ Primero convierte una expresión regular."
+            lbl_resultado.color = "red"
+            page.update()
+            return
+        auto = resultado[clave]
+        root_dialog = tk.Tk()
+        root_dialog.withdraw()
+        root_dialog.attributes("-topmost", True)
+        ruta = filedialog.asksaveasfilename(
+            title=f"Exportar {nombre} para JFLAP",
+            defaultextension=".jff",
+            initialfile=f"{nombre.lower().replace(' ', '_')}.jff",
+            filetypes=[("Autómata JFLAP", "*.jff")]
+        )
+        root_dialog.destroy()
+        if not ruta:
+            return
+        try:
+            exportar_jff(auto, ruta)
+            lbl_resultado.value = (
+                f"✔ {nombre} exportado a JFLAP | "
+                f"{len(auto.estados)} estados, {len(auto.transiciones)} grupos de transiciones."
+            )
+            lbl_resultado.color = "green"
+        except Exception as ex:
+            lbl_resultado.value = f"✘ Error al exportar {nombre}: {ex}"
+            lbl_resultado.color = "red"
+        page.update()
+
+    btn_exportar_afnl = ft.ElevatedButton(
+        "Exportar AFN-λ", on_click=lambda e: exportar_etapa_regex("afn_lambda", "AFN-lambda")
+    )
+    btn_exportar_afn = ft.ElevatedButton(
+        "Exportar AFN sin λ", on_click=lambda e: exportar_etapa_regex("afn", "AFN")
+    )
+    btn_exportar_afd = ft.ElevatedButton(
+        "Exportar AFD", on_click=lambda e: exportar_etapa_regex("afd", "AFD")
+    )
+    btn_exportar_min = ft.ElevatedButton(
+        "Exportar AFD mínimo", on_click=lambda e: exportar_etapa_regex("afd_minimo", "AFD-minimo")
+    )
 
     # Validadores Prácticos
     dd_validador = ft.Dropdown(
@@ -476,13 +645,25 @@ def main(page: ft.Page):
         ft.Text("3. Operaciones y Conversiones sobre Autómata (Prácticas 3 y 4)", size=16, weight=ft.FontWeight.BOLD),
         ft.Row([btn_elim_lambda, btn_subconjuntos, btn_minimizar], alignment=ft.MainAxisAlignment.START),
         ft.Row([btn_auto_regex, btn_lote], alignment=ft.MainAxisAlignment.START),
+        lbl_rij_paso,
+        ft.Row([btn_rij_anterior, btn_rij_siguiente], alignment=ft.MainAxisAlignment.START),
+        col_rij,
         ft.Divider(),
-        ft.Text("4. Expresiones Regulares y Validadores Prácticos (Práctica 4)", size=16, weight=ft.FontWeight.BOLD),
+        ft.Text("4. Comparación de equivalencia con JFLAP", size=16, weight=ft.FontWeight.BOLD),
+        ft.Row([btn_cargar_equiv_a, btn_cargar_equiv_b], wrap=True),
+        lbl_archivos_equiv,
+        btn_comparar_equiv,
+        lbl_resultado_equiv,
+        ft.Divider(),
+        ft.Text("5. Expresiones Regulares y Validadores Prácticos (Práctica 4)", size=16, weight=ft.FontWeight.BOLD),
         ft.Row([txt_regex, btn_regex_afd], alignment=ft.MainAxisAlignment.START),
         ft.Text("Construcción de Thompson: avance por los autómatas parciales", weight=ft.FontWeight.BOLD),
         lbl_paso_thompson,
         ft.Row([btn_paso_anterior, btn_paso_siguiente], alignment=ft.MainAxisAlignment.START),
         col_thompson,
+        ft.Text("Exportación de cada etapa a JFLAP (.jff)", weight=ft.FontWeight.BOLD),
+        ft.Row([btn_exportar_afnl, btn_exportar_afn], wrap=True),
+        ft.Row([btn_exportar_afd, btn_exportar_min], wrap=True),
         ft.Row([dd_validador, txt_val_cadena, btn_probar_validador], alignment=ft.MainAxisAlignment.START),
         lbl_info_validador,
         ft.Divider(),
